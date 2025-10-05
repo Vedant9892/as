@@ -1,23 +1,366 @@
 {% extends "base.html" %}
-{% block title %}Stock Report{% endblock %}
+{% block title %}Inventory Report - StockMate{% endblock %}
 
 {% block content %}
-<h2>Stock Report</h2>
-<table>
-    <tr>
-        <th>Name</th>
-        <th>Quantity</th>
-        <th>Price</th>
-        <th>Total Value</th>
-    </tr>
+<div class="fade-in">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-1" style="background: linear-gradient(135deg, #11998e, #38ef7d); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        <i class="bi bi-graph-up"></i> Inventory Report
+                    </h1>
+                    <p class="text-muted mb-0">Comprehensive overview of your inventory and business metrics</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" onclick="window.print()">
+                        <i class="bi bi-printer"></i> Print Report
+                    </button>
+                    <button class="btn btn-success" onclick="downloadPDF()">
+                        <i class="bi bi-file-earmark-pdf"></i> Download PDF
+                    </button>
+                    <button class="btn btn-info" onclick="exportExcel()">
+                        <i class="bi bi-file-earmark-excel"></i> Export Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="dashboard-card">
+                <div class="card-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                    <i class="bi bi-boxes"></i>
+                </div>
+                <div class="card-value">{{ products|length }}</div>
+                <div class="card-label">Total Products</div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="dashboard-card">
+                <div class="card-icon" style="background: linear-gradient(135deg, #11998e, #38ef7d);">
+                    <i class="bi bi-currency-dollar"></i>
+                </div>
+                <div class="card-value">${{ "%.2f"|format(total_value) }}</div>
+                <div class="card-label">Total Inventory Value</div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="dashboard-card">
+                <div class="card-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+                <div class="card-value">{{ products|selectattr('quantity', 'le', 5)|list|length }}</div>
+                <div class="card-label">Low Stock Items</div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="dashboard-card">
+                <div class="card-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                    <i class="bi bi-tags"></i>
+                </div>
+                <div class="card-value">{{ products|map(attribute='category')|unique|list|length }}</div>
+                <div class="card-label">Categories</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-4 mb-4">
+        <!-- Category Distribution Chart -->
+        <div class="col-lg-6">
+            <div class="dashboard-card">
+                <h5 class="mb-3">
+                    <i class="bi bi-pie-chart"></i> Category Distribution
+                </h5>
+                <canvas id="categoryChart" height="300"></canvas>
+            </div>
+        </div>
+        
+        <!-- Stock Status Chart -->
+        <div class="col-lg-6">
+            <div class="dashboard-card">
+                <h5 class="mb-3">
+                    <i class="bi bi-bar-chart"></i> Stock Status Overview
+                </h5>
+                <canvas id="stockChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Inventory Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="dashboard-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">
+                        <i class="bi bi-table"></i> Detailed Inventory
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <select class="form-select form-select-sm" id="categoryFilter" style="width: 200px;">
+                            <option value="">All Categories</option>
+                            {% for category in products|map(attribute='category')|unique %}
+                            <option value="{{ category }}">{{ category }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="input-group" style="width: 250px;">
+                            <span class="input-group-text input-group-text-sm"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Search products...">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" id="inventoryTable">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Category</th>
+                                    <th class="text-center">Quantity</th>
+                                    <th class="text-center">Price</th>
+                                    <th class="text-center">Total Value</th>
+                                    <th class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in products %}
+                                <tr data-category="{{ product.category }}" data-name="{{ product.name|lower }}">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if product.image %}
+                                            <img src="{{ url_for('static', filename='uploads/' + product.image) }}" 
+                                                 class="rounded me-3" style="width: 45px; height: 45px; object-fit: cover;">
+                                            {% else %}
+                                            <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" 
+                                                 style="width: 45px; height: 45px;">
+                                                <i class="bi bi-image text-muted"></i>
+                                            </div>
+                                            {% endif %}
+                                            <div>
+                                                <div class="fw-semibold">{{ product.name }}</div>
+                                                <small class="text-muted">ID: #{{ product.id }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge rounded-pill" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white;">
+                                            {{ product.category }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="fw-bold {% if product.quantity <= 5 %}text-warning{% endif %}">
+                                            {{ product.quantity }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="fw-semibold">${{ "%.2f"|format(product.price) }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="fw-bold" style="color: var(--success-color);">
+                                            ${{ "%.2f"|format(product.quantity * product.price) }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if product.quantity == 0 %}
+                                        <span class="status-badge status-low">
+                                            <i class="bi bi-x-circle"></i> Out of Stock
+                                        </span>
+                                        {% elif product.quantity <= 5 %}
+                                        <span class="status-badge status-low">
+                                            <i class="bi bi-exclamation-triangle"></i> Low Stock
+                                        </span>
+                                        {% else %}
+                                        <span class="status-badge status-normal">
+                                            <i class="bi bi-check-circle"></i> In Stock
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="dashboard-card">
+                <h5 class="mb-3">
+                    <i class="bi bi-calculator"></i> Summary Statistics
+                </h5>
+                <div class="row g-4 text-center">
+                    <div class="col-md-3">
+                        <div class="p-3 bg-light rounded">
+                            <div class="h4 text-primary mb-1">{{ products|sum(attribute='quantity') }}</div>
+                            <small class="text-muted">Total Items</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 bg-light rounded">
+                            <div class="h4 text-success mb-1">${{ "%.2f"|format(products|map('getattr', 'price')|max|default(0)) }}</div>
+                            <small class="text-muted">Highest Price</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 bg-light rounded">
+                            <div class="h4 text-info mb-1">${{ "%.2f"|format(total_value / products|length if products else 0) }}</div>
+                            <small class="text-muted">Average Value</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="p-3 bg-light rounded">
+                            <div class="h4 text-warning mb-1">{{ "%.1f"|format((products|selectattr('quantity', 'le', 5)|list|length / products|length * 100) if products else 0) }}%</div>
+                            <small class="text-muted">Low Stock %</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Category Distribution Chart
+const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+const categoryData = {
+    {% set categories = {} %}
     {% for product in products %}
-    <tr>
-        <td>{{ product.name }}</td>
-        <td>{{ product.quantity }}</td>
-        <td>{{ product.price }}</td>
-        <td>{{ "%.2f"|format(product.quantity * product.price) }}</td>
-    </tr>
+        {% if categories.update({product.category: categories.get(product.category, 0) + 1}) %}{% endif %}
     {% endfor %}
-</table>
-<h3>Total Stock Value: {{ "%.2f"|format(total_value) }}</h3>
+    
+    labels: [{% for category in categories.keys() %}'{{ category }}'{{ ',' if not loop.last }}{% endfor %}],
+    datasets: [{
+        data: [{% for count in categories.values() %}{{ count }}{{ ',' if not loop.last }}{% endfor %}],
+        backgroundColor: [
+            'rgba(102, 126, 234, 0.8)',
+            'rgba(17, 153, 142, 0.8)',
+            'rgba(240, 147, 251, 0.8)',
+            'rgba(79, 172, 254, 0.8)',
+            'rgba(56, 239, 125, 0.8)',
+            'rgba(245, 87, 108, 0.8)',
+            'rgba(255, 206, 84, 0.8)',
+            'rgba(153, 102, 255, 0.8)'
+        ],
+        borderWidth: 0
+    }]
+};
+
+new Chart(categoryCtx, {
+    type: 'doughnut',
+    data: categoryData,
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    usePointStyle: true
+                }
+            }
+        }
+    }
+});
+
+// Stock Status Chart
+const stockCtx = document.getElementById('stockChart').getContext('2d');
+const inStock = {{ products|selectattr('quantity', 'gt', 5)|list|length }};
+const lowStock = {{ products|selectattr('quantity', 'le', 5)|selectattr('quantity', 'gt', 0)|list|length }};
+const outOfStock = {{ products|selectattr('quantity', 'eq', 0)|list|length }};
+
+new Chart(stockCtx, {
+    type: 'bar',
+    data: {
+        labels: ['In Stock', 'Low Stock', 'Out of Stock'],
+        datasets: [{
+            label: 'Number of Products',
+            data: [inStock, lowStock, outOfStock],
+            backgroundColor: [
+                'rgba(17, 153, 142, 0.8)',
+                'rgba(237, 137, 54, 0.8)',
+                'rgba(229, 62, 62, 0.8)'
+            ],
+            borderColor: [
+                'rgb(17, 153, 142)',
+                'rgb(237, 137, 54)',
+                'rgb(229, 62, 62)'
+            ],
+            borderWidth: 2,
+            borderRadius: 8
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        }
+    }
+});
+
+// Search and filter functionality
+document.getElementById('searchInput').addEventListener('input', filterTable);
+document.getElementById('categoryFilter').addEventListener('change', filterTable);
+
+function filterTable() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const selectedCategory = document.getElementById('categoryFilter').value;
+    const rows = document.querySelectorAll('#inventoryTable tbody tr');
+    
+    rows.forEach(row => {
+        const productName = row.dataset.name;
+        const productCategory = row.dataset.category;
+        
+        const matchesSearch = productName.includes(searchTerm);
+        const matchesCategory = !selectedCategory || productCategory === selectedCategory;
+        
+        row.style.display = (matchesSearch && matchesCategory) ? '' : 'none';
+    });
+}
+
+// Download functions
+function downloadPDF() {
+    // This would typically integrate with a PDF generation library
+    alert('PDF download feature coming soon!');
+}
+
+function exportExcel() {
+    // This would typically integrate with an Excel export library
+    alert('Excel export feature coming soon!');
+}
+
+// Print styles
+const printStyles = `
+    <style>
+        @media print {
+            .btn, .form-control, .form-select { display: none !important; }
+            .dashboard-card { box-shadow: none !important; border: 1px solid #ccc !important; }
+            body { background: white !important; }
+        }
+    </style>
+`;
+document.head.insertAdjacentHTML('beforeend', printStyles);
+</script>
 {% endblock %}
