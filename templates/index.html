@@ -2,194 +2,239 @@
 {% block title %}Dashboard - StockMate{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <h1 class="h3 mb-0">
-            <i class="bi bi-speedometer2"></i> Dashboard Overview
-        </h1>
-        <p class="text-muted">Welcome back, {{ session.username }}! Here's your inventory summary.</p>
+<div class="fade-in">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-1" style="background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        <i class="bi bi-speedometer2"></i> Dashboard Overview
+                    </h1>
+                    <p class="text-muted mb-0">Welcome back, <strong>{{ session.username }}</strong>! Here's your inventory summary.</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" onclick="refreshDashboard()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                    <a href="{{ url_for('add_product') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-lg"></i> Add Product
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
 
-<!-- KPI Cards -->
-<div class="row g-4 mb-4">
-    <div class="col-xl-3 col-md-6">
-        <div class="dashboard-card">
-            <div class="card-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
-                <i class="bi bi-box-seam"></i>
+    <!-- KPI Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="dashboard-card">
+                <div class="card-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                    <i class="bi bi-boxes"></i>
+                </div>
+                <div class="card-value">{{ products|length }}</div>
+                <div class="card-label">Total Products</div>
             </div>
-            <div class="card-value">{{ products|length }}</div>
-            <div class="card-label">Total Products</div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="dashboard-card">
+                <div class="card-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+                <div class="card-value">{{ products|selectattr('quantity', 'le', 5)|list|length }}</div>
+                <div class="card-label">Low Stock Items</div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="dashboard-card">
+                <div class="card-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
+                    <i class="bi bi-currency-dollar"></i>
+                </div>
+                <div class="card-value">${{ "%.0f"|format(products|sum(attribute='price')|default(0)) }}</div>
+                <div class="card-label">Total Value</div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="dashboard-card">
+                <div class="card-icon" style="background: linear-gradient(135deg, #11998e, #38ef7d);">
+                    <i class="bi bi-graph-up"></i>
+                </div>
+                <div class="card-value">{{ products|map(attribute='category')|unique|list|length }}</div>
+                <div class="card-label">Categories</div>
+            </div>
         </div>
     </div>
-    
-    <div class="col-xl-3 col-md-6">
-        <div class="dashboard-card">
-            <div class="card-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
-                <i class="bi bi-exclamation-triangle"></i>
-            </div>
-            <div class="card-value">{{ low_stock_count }}</div>
-            <div class="card-label">Low Stock Items</div>
-        </div>
-    </div>
-    
-    <div class="col-xl-3 col-md-6">
-        <div class="dashboard-card">
-            <div class="card-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">
-                <i class="bi bi-currency-dollar"></i>
-            </div>
-            <div class="card-value">${{ "%.2f"|format(total_inventory_value) }}</div>
-            <div class="card-label">Total Value</div>
-        </div>
-    </div>
-    
-    <div class="col-xl-3 col-md-6">
-        <div class="dashboard-card">
-            <div class="card-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">
-                <i class="bi bi-graph-up"></i>
-            </div>
-            <div class="card-value">{{ active_categories }}</div>
-            <div class="card-label">Categories</div>
-        </div>
-    </div>
-</div>
 
-<!-- Quick Actions -->
-<div class="row g-4 mb-4">
-    <div class="col-12">
-        <div class="dashboard-card">
-            <h5 class="mb-3">
-                <i class="bi bi-lightning-charge"></i> Quick Actions
-            </h5>
-            <div class="d-flex flex-wrap gap-2">
-                <a href="{{ url_for('add_product') }}" class="btn btn-primary">
-                    <i class="bi bi-plus-circle"></i> Add Product
-                </a>
-                <a href="{{ url_for('low_stock') }}" class="btn btn-warning">
-                    <i class="bi bi-exclamation-triangle"></i> Check Low Stock
-                </a>
-                <a href="{{ url_for('report') }}" class="btn btn-success">
-                    <i class="bi bi-file-earmark-text"></i> Generate Report
-                </a>
-                <button class="btn btn-info" onclick="window.print()">
-                    <i class="bi bi-printer"></i> Print Inventory
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Recent Products & Low Stock Alerts -->
-<div class="row g-4">
-    <!-- Recent Products -->
-    <div class="col-lg-8">
-        <div class="table-container">
-            <div class="table-header p-3 border-bottom">
-                <h5 class="mb-0">
-                    <i class="bi bi-clock-history"></i> Recent Products
+    <!-- Quick Actions -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="dashboard-card">
+                <h5 class="mb-3 d-flex align-items-center">
+                    <i class="bi bi-lightning-charge me-2"></i> Quick Actions
                 </h5>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>Product</th>
-                            <th>Category</th>
-                            <th>Stock</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for product in products[:10] %}
-                        <tr>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    {% if product.image %}
-                                    <img src="{{ url_for('static', filename='uploads/' + product.image) }}" 
-                                         class="rounded me-2" style="width: 40px; height: 40px; object-fit: cover;">
-                                    {% else %}
-                                    <div class="bg-light rounded me-2 d-flex align-items-center justify-content-center" 
-                                         style="width: 40px; height: 40px;">
-                                        <i class="bi bi-image text-muted"></i>
-                                    </div>
-                                    {% endif %}
-                                    <div>
-                                        <div class="fw-semibold">{{ product.name }}</div>
-                                        <small class="text-muted">SKU: {{ product.id }}</small>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>{{ product.category }}</td>
-                            <td>
-                                <span class="fw-semibold">{{ product.quantity }}</span>
-                            </td>
-                            <td>
-                                {% if product.quantity <= 5 %}
-                                <span class="status-badge status-low">Low Stock</span>
-                                {% else %}
-                                <span class="status-badge status-normal">In Stock</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <div class="d-flex gap-1">
-                                    <a href="{{ url_for('update_product', id=product.id) }}" 
-                                       class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                    <a href="{{ url_for('delete_product', id=product.id) }}" 
-                                       class="btn btn-sm btn-outline-danger"
-                                       onclick="return confirm('Are you sure?')">
-                                        <i class="bi bi-trash"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                <div class="d-flex flex-wrap gap-3">
+                    <a href="{{ url_for('add_product') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Add Product
+                    </a>
+                    <a href="{{ url_for('low_stock') }}" class="btn btn-warning">
+                        <i class="bi bi-exclamation-triangle"></i> Check Low Stock
+                    </a>
+                    <a href="{{ url_for('report') }}" class="btn btn-success">
+                        <i class="bi bi-file-earmark-text"></i> Generate Report
+                    </a>
+                    <button class="btn btn-info" onclick="window.print()">
+                        <i class="bi bi-printer"></i> Print Inventory
+                    </button>
+                    <button class="btn btn-secondary" onclick="exportToCSV()">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> Export CSV
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-    
-    <!-- Stock Status Chart -->
-    <div class="col-lg-4">
-        <div class="dashboard-card">
-            <h5 class="mb-3">
-                <i class="bi bi-pie-chart"></i> Stock Status
-            </h5>
-            <canvas id="stockChart" width="300" height="200"></canvas>
+
+    <!-- Products Grid -->
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">
+                    <i class="bi bi-grid-3x3-gap"></i> Product Inventory
+                </h5>
+                <div class="d-flex gap-2">
+                    <div class="input-group" style="width: 300px;">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="searchInput" placeholder="Search products...">
+                    </div>
+                    <select class="form-select" id="categoryFilter" style="width: 200px;">
+                        <option value="">All Categories</option>
+                        {% for category in products|map(attribute='category')|unique %}
+                        <option value="{{ category }}">{{ category }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="product-grid" id="productGrid">
+                {% for product in products %}
+                <div class="product-card" data-category="{{ product.category }}" data-name="{{ product.name|lower }}">
+                    <div style="position: relative; overflow: hidden;">
+                        {% if product.image %}
+                        <img src="{{ url_for('static', filename='uploads/' + product.image) }}" 
+                             alt="{{ product.name }}" class="product-image">
+                        {% else %}
+                        <div class="product-image d-flex align-items-center justify-content-center bg-light">
+                            <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                        </div>
+                        {% endif %}
+                        {% if product.quantity <= 5 %}
+                        <span class="position-absolute top-0 start-0 m-2 status-badge status-low">
+                            <i class="bi bi-exclamation-triangle-fill"></i> Low Stock
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="product-body">
+                        <h5 class="product-title">{{ product.name }}</h5>
+                        <p class="product-category">
+                            <i class="bi bi-tag"></i> {{ product.category }}
+                        </p>
+                        
+                        <div class="product-stats">
+                            <div class="product-stat">
+                                <span class="product-stat-value">{{ product.quantity }}</span>
+                                <small class="product-stat-label">In Stock</small>
+                            </div>
+                            <div class="product-stat">
+                                <span class="product-stat-value">${{ "%.0f"|format(product.price) }}</span>
+                                <small class="product-stat-label">Price</small>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <a href="{{ url_for('update_product', id=product.id) }}" 
+                               class="btn btn-outline-primary btn-sm flex-fill">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                            <button class="btn btn-outline-danger btn-sm" 
+                                    onclick="deleteProduct({{ product.id }}, '{{ product.name }}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            {% if not products %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox" style="font-size: 4rem; color: var(--text-muted);"></i>
+                <h4 class="mt-3 text-muted">No Products Found</h4>
+                <p class="text-muted">Start by adding your first product to the inventory.</p>
+                <a href="{{ url_for('add_product') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-lg"></i> Add First Product
+                </a>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
-<!-- Chart Script -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const ctx = document.getElementById('stockChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['In Stock', 'Low Stock', 'Out of Stock'],
-            datasets: [{
-                data: [{{ in_stock_count }}, {{ low_stock_count }}, {{ out_of_stock_count }}],
-                backgroundColor: [
-                    'rgba(5, 150, 105, 0.8)',
-                    'rgba(217, 119, 6, 0.8)',
-                    'rgba(220, 38, 38, 0.8)'
-                ],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            }
+// Search functionality
+document.getElementById('searchInput').addEventListener('input', function() {
+    filterProducts();
+});
+
+document.getElementById('categoryFilter').addEventListener('change', function() {
+    filterProducts();
+});
+
+function filterProducts() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const selectedCategory = document.getElementById('categoryFilter').value;
+    const productCards = document.querySelectorAll('.product-card');
+    
+    productCards.forEach(card => {
+        const productName = card.dataset.name;
+        const productCategory = card.dataset.category;
+        
+        const matchesSearch = productName.includes(searchTerm);
+        const matchesCategory = !selectedCategory || productCategory === selectedCategory;
+        
+        if (matchesSearch && matchesCategory) {
+            card.style.display = 'block';
+            card.style.animation = 'fadeIn 0.3s ease-out';
+        } else {
+            card.style.display = 'none';
         }
+    });
+}
+
+function deleteProduct(productId, productName) {
+    if (confirm(`Are you sure you want to delete "${productName}"? This action cannot be undone.`)) {
+        window.location.href = `/delete/${productId}`;
+    }
+}
+
+function refreshDashboard() {
+    location.reload();
+}
+
+function exportToCSV() {
+    // Simple CSV export functionality
+    window.location.href = '/export-csv'; // You'll need to implement this route
+}
+
+// Add loading states and animations
+document.addEventListener('DOMContentLoaded', function() {
+    // Add staggered animation to product cards
+    const cards = document.querySelectorAll('.product-card');
+    cards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.1}s`;
+        card.classList.add('fade-in');
     });
 });
 </script>
