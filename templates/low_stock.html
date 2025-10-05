@@ -1,22 +1,233 @@
 {% extends "base.html" %}
-{% block title %}Low Stock{% endblock %}
+{% block title %}Low Stock Alert - StockMate{% endblock %}
 
 {% block content %}
-<h2>Low Stock Alerts</h2>
-{% if products %}
-<table>
-    <tr>
-        <th>Name</th>
-        <th>Quantity</th>
-    </tr>
-    {% for product in products %}
-    <tr>
-        <td>{{ product.name }}</td>
-        <td>{{ product.quantity }}</td>
-    </tr>
-    {% endfor %}
-</table>
-{% else %}
-<p>No products are low on stock.</p>
-{% endif %}
+<div class="fade-in">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-1" style="background: linear-gradient(135deg, #f093fb, #f5576c); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        <i class="bi bi-exclamation-triangle"></i> Low Stock Alert
+                    </h1>
+                    <p class="text-muted mb-0">Products with 5 or fewer items in stock require immediate attention</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to Dashboard
+                    </a>
+                    <a href="{{ url_for('add_product') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-lg"></i> Add Product
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if products %}
+    <!-- Alert Summary -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-warning d-flex align-items-center">
+                <i class="bi bi-exclamation-triangle-fill me-2" style="font-size: 1.5rem;"></i>
+                <div>
+                    <strong>{{ products|length }} product(s)</strong> are running low on stock. 
+                    Consider restocking these items to avoid stockouts.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Low Stock Products -->
+    <div class="table-container">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>Current Stock</th>
+                        <th>Status</th>
+                        <th>Price</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                {% if product.image %}
+                                <img src="{{ url_for('static', filename='uploads/' + product.image) }}" 
+                                     class="rounded me-3" style="width: 50px; height: 50px; object-fit: cover;">
+                                {% else %}
+                                <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" 
+                                     style="width: 50px; height: 50px;">
+                                    <i class="bi bi-image text-muted"></i>
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <div class="fw-semibold">{{ product.name }}</div>
+                                    <small class="text-muted">ID: #{{ product.id }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge rounded-pill" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white;">
+                                {{ product.category }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="fw-bold text-warning" style="font-size: 1.1rem;">
+                                {{ product.quantity }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if product.quantity == 0 %}
+                            <span class="status-badge" style="background: linear-gradient(135deg, #fed7d7, #feb2b2); color: #c53030;">
+                                <i class="bi bi-x-circle-fill"></i> Out of Stock
+                            </span>
+                            {% elif product.quantity <= 2 %}
+                            <span class="status-badge" style="background: linear-gradient(135deg, #fed7d7, #feb2b2); color: #c53030;">
+                                <i class="bi bi-exclamation-triangle-fill"></i> Critical
+                            </span>
+                            {% else %}
+                            <span class="status-badge" style="background: linear-gradient(135deg, #feebc8, #fbd38d); color: #c05621;">
+                                <i class="bi bi-exclamation-triangle"></i> Low Stock
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="fw-semibold">${{ "%.2f"|format(product.price) }}</span>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{{ url_for('update_product', id=product.id) }}" 
+                                   class="btn btn-sm btn-outline-primary" 
+                                   data-bs-toggle="tooltip" title="Edit Product">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button class="btn btn-sm btn-success" 
+                                        onclick="quickRestock({{ product.id }}, '{{ product.name }}')"
+                                        data-bs-toggle="tooltip" title="Quick Restock">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Bulk Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="dashboard-card">
+                <h5 class="mb-3">
+                    <i class="bi bi-lightning-charge"></i> Quick Actions
+                </h5>
+                <div class="d-flex flex-wrap gap-3">
+                    <button class="btn btn-success" onclick="bulkRestock()">
+                        <i class="bi bi-arrow-up-circle"></i> Bulk Restock
+                    </button>
+                    <button class="btn btn-info" onclick="exportLowStock()">
+                        <i class="bi bi-download"></i> Export Report
+                    </button>
+                    <button class="btn btn-warning" onclick="emailSuppliers()">
+                        <i class="bi bi-envelope"></i> Email Suppliers
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- No Low Stock Items -->
+    <div class="text-center py-5">
+        <div class="dashboard-card">
+            <i class="bi bi-check-circle" style="font-size: 5rem; background: linear-gradient(135deg, #11998e, #38ef7d); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+            <h3 class="mt-3">All Good!</h3>
+            <p class="text-muted mb-4">All products are adequately stocked. No immediate action required.</p>
+            <a href="{{ url_for('index') }}" class="btn btn-primary">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Quick Restock Modal -->
+<div class="modal fade" id="restockModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background: var(--success-gradient); color: white;">
+                <h5 class="modal-title">
+                    <i class="bi bi-plus-circle"></i> Quick Restock
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="restockForm">
+                    <input type="hidden" id="productId">
+                    <div class="mb-3">
+                        <label for="productName" class="form-label">Product</label>
+                        <input type="text" class="form-control" id="productName" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addQuantity" class="form-label">Add Quantity</label>
+                        <input type="number" class="form-control" id="addQuantity" min="1" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="submitRestock()">
+                    <i class="bi bi-check"></i> Update Stock
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Initialize tooltips
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+});
+
+function quickRestock(productId, productName) {
+    document.getElementById('productId').value = productId;
+    document.getElementById('productName').value = productName;
+    document.getElementById('addQuantity').value = '';
+    
+    var modal = new bootstrap.Modal(document.getElementById('restockModal'));
+    modal.show();
+}
+
+function submitRestock() {
+    const productId = document.getElementById('productId').value;
+    const addQuantity = document.getElementById('addQuantity').value;
+    
+    if (addQuantity && addQuantity > 0) {
+        // You'll need to implement this route in your Flask app
+        window.location.href = `/quick-restock/${productId}/${addQuantity}`;
+    }
+}
+
+function bulkRestock() {
+    alert('Bulk restock feature coming soon!');
+}
+
+function exportLowStock() {
+    window.print();
+}
+
+function emailSuppliers() {
+    alert('Email suppliers feature coming soon!');
+}
+</script>
 {% endblock %}
