@@ -3,10 +3,10 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from models import db, Product, User
-
+from flask_migrate import Migrate 
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
-
+migrate = Migrate(app, db)
 # ------------------- Database Config -------------------
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stock.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -186,4 +186,5 @@ def report():
 
 # ------------------- Run App -------------------
 if __name__ == '__main__':
+
     app.run(debug=True) 
