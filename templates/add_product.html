@@ -1,16 +1,166 @@
 {% extends "base.html" %}
-{% block title %}Add Product{% endblock %}
+{% block title %}Add Product - StockMate{% endblock %}
 
 {% block content %}
-<div class="form-card">
-    <h2>➕ Add Product</h2>
-    <form method="POST" enctype="multipart/form-data">
-        <input type="text" name="name" placeholder="Product Name" required>
-        <input type="text" name="category" placeholder="Category" required>
-        <input type="number" name="quantity" placeholder="Quantity" required>
-        <input type="number" step="1" name="price" placeholder="Price" required>
-        <input type="file" name="image" accept="image/*">
-        <button type="submit">Add Product</button>
-    </form>
+<div class="fade-in">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="text-center mb-4">
+                <h1 class="h2" style="background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                    <i class="bi bi-plus-circle"></i> Add New Product
+                </h1>
+                <p class="text-muted">Fill in the details below to add a new product to your inventory</p>
+            </div>
+            
+            <div class="form-container">
+                <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+                    <div class="row g-4">
+                        <!-- Product Name -->
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="name" name="name" placeholder="Product Name" required>
+                                <label for="name" class="form-label">
+                                    <i class="bi bi-box"></i> Product Name
+                                </label>
+                                <div class="invalid-feedback">Please enter a product name.</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Category -->
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <select class="form-control form-select" id="category" name="category" required>
+                                    <option value="" disabled selected>Choose Category</option>
+                                    <option value="Electronics">Electronics</option>
+                                    <option value="Clothing">Clothing</option>
+                                    <option value="Food">Food & Beverages</option>
+                                    <option value="Books">Books</option>
+                                    <option value="Home">Home & Garden</option>
+                                    <option value="Sports">Sports & Outdoors</option>
+                                    <option value="Toys">Toys & Games</option>
+                                    <option value="Health">Health & Beauty</option>
+                                    <option value="Automotive">Automotive</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                <label for="category" class="form-label">
+                                    <i class="bi bi-tags"></i> Category
+                                </label>
+                                <div class="invalid-feedback">Please select a category.</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Quantity -->
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="number" class="form-control" id="quantity" name="quantity" placeholder="Quantity" min="0" required>
+                                <label for="quantity" class="form-label">
+                                    <i class="bi bi-hash"></i> Quantity
+                                </label>
+                                <div class="invalid-feedback">Please enter a valid quantity.</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Price -->
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="number" class="form-control" id="price" name="price" placeholder="Price" min="0" step="0.01" required>
+                                <label for="price" class="form-label">
+                                    <i class="bi bi-currency-dollar"></i> Price
+                                </label>
+                                <div class="invalid-feedback">Please enter a valid price.</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Image Upload -->
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-image"></i> Product Image
+                            </label>
+                            <div class="image-upload-container">
+                                <input type="file" class="form-control" id="image" name="image" accept="image/*" onchange="previewImage(this)">
+                                <div class="image-preview mt-3" id="imagePreview" style="display: none;">
+                                    <img id="preview" src="#" alt="Preview" style="max-width: 200px; max-height: 200px; border-radius: 8px; box-shadow: var(--box-shadow);">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="d-flex gap-3 justify-content-end">
+                                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-lg"></i> Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-lg"></i> Add Product
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+// Form validation
+(function() {
+    'use strict';
+    window.addEventListener('load', function() {
+        var forms = document.getElementsByClassName('needs-validation');
+        var validation = Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+})();
+
+// Image preview
+function previewImage(input) {
+    if (input.files && input.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('preview').src = e.target.result;
+            document.getElementById('imagePreview').style.display = 'block';
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// Auto-suggest category based on product name
+document.getElementById('name').addEventListener('input', function() {
+    const productName = this.value.toLowerCase();
+    const categorySelect = document.getElementById('category');
+    
+    const suggestions = {
+        'phone': 'Electronics',
+        'laptop': 'Electronics',
+        'computer': 'Electronics',
+        'shirt': 'Clothing',
+        'pants': 'Clothing',
+        'dress': 'Clothing',
+        'book': 'Books',
+        'novel': 'Books',
+        'chair': 'Home',
+        'table': 'Home',
+        'ball': 'Sports',
+        'game': 'Toys'
+    };
+    
+    for (let keyword in suggestions) {
+        if (productName.includes(keyword) && !categorySelect.value) {
+            categorySelect.value = suggestions[keyword];
+            break;
+        }
+    }
+});
+</script>
 {% endblock %}
